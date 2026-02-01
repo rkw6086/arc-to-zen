@@ -2,7 +2,7 @@ class ArcToZen < Formula
   desc "Go CLI tool that imports Arc browser data into Zen browser"
   homepage "https://github.com/rkw6086/arc-to-zen"
   url "https://github.com/rkw6086/arc-to-zen/archive/refs/tags/v1.0.0.tar.gz"
-  sha256 "REPLACE_WITH_ACTUAL_SHA256"
+  sha256 "350543eba690000f26b3b0d772b926c76f564011c2b78cedb923cf8b928b88b7"
   license "MIT"
 
   depends_on "go" => :build
