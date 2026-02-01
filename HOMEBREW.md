@@ -5,16 +5,11 @@
 To install `arc-to-zen` using Homebrew:
 
 ```bash
-# Add the tap
-brew tap rkw6086/arc-to-zen
+# Add the tap (note: must specify HTTPS URL)
+brew tap rkw6086/arc-to-zen https://github.com/rkw6086/arc-to-zen.git
 
 # Install the formula
 brew install arc-to-zen
-```
-
-Or install directly in one command (auto-taps):
-```bash
-brew install rkw6086/arc-to-zen/arc-to-zen
 ```
 
 ## Updating

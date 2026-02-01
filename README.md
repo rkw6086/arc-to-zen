@@ -19,6 +19,22 @@ A Go implementation of the Arc browser data import tool for Zen browser. This to
 
 ## Installation
 
+### Via Homebrew (Recommended)
+
+```bash
+# Add the tap
+brew tap rkw6086/arc-to-zen https://github.com/rkw6086/arc-to-zen.git
+
+# Install
+brew install arc-to-zen
+```
+
+To update:
+```bash
+brew update
+brew upgrade arc-to-zen
+```
+
 ### Build from source
 
 ```bash
