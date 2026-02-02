@@ -141,6 +141,7 @@ This removes:
 - `zen-sessions-backup/` - Session backup directory
 - `sessionstore.jsonlz4` - Firefox-compatible session store
 - `sessionstore-backups/` - Session store backups
+- `containers.json` - Container/profile definitions
 
 Use with `-dry-run` to preview what would be removed:
 ```bash
