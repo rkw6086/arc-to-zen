@@ -78,10 +78,17 @@ func parseArcItems(rawItems []interface{}) ([]*types.ArcItem, error) {
 
 // calculateNextContainerID finds the next available container ID
 func calculateNextContainerID(containersData *types.ContainersData) int {
+	// Start with lastUserContextId if available
 	maxID := 0
+	if containersData.LastUserContextID != nil {
+		maxID = *containersData.LastUserContextID
+	}
+	
+	// Also check all existing containers to be safe
 	for _, container := range containersData.Identities {
-		if container.UserContextID != maxUint32 && container.UserContextID > maxID {
-			maxID = container.UserContextID
+		id := container.GetUserContextID()
+		if id != maxUint32 && id > maxID {
+			maxID = id
 		}
 	}
 	return maxID + 1
@@ -97,10 +104,10 @@ func findSpaceByName(spaces []types.ZenSpace, name string) *types.ZenSpace {
 	return nil
 }
 
-// findContainerByName finds a container by its name
+// findContainerByName finds a container by its name (only returns containers with valid userContextId)
 func findContainerByName(containers []types.ContainerIdentity, name string) *types.ContainerIdentity {
 	for i := range containers {
-		if containers[i].Name == name {
+		if containers[i].Name == name && containers[i].HasValidUserContextID() {
 			return &containers[i]
 		}
 	}
@@ -110,7 +117,7 @@ func findContainerByName(containers []types.ContainerIdentity, name string) *typ
 // updateContainer updates an existing container's properties
 func updateContainer(containers []types.ContainerIdentity, containerID int, name, icon, color string) {
 	for i := range containers {
-		if containers[i].UserContextID == containerID {
+		if containers[i].GetUserContextID() == containerID {
 			containers[i].Name = name
 			containers[i].Icon = mappings.MapArcIconToContainerIcon(icon)
 			containers[i].Color = mappings.MapArcColorToZen(color)
@@ -179,6 +186,73 @@ func markDescendants(parentID, spaceID string, itemsMap map[string]*types.ArcIte
 		itemToSpaceMap[childID] = spaceID
 		markDescendants(childID, spaceID, itemsMap, itemToSpaceMap)
 	}
+}
+
+// getProfileName extracts the profile name from an Arc space
+// Returns "default" for the default profile, or the directoryBasename for custom profiles
+func getProfileName(space *types.ArcSpace) string {
+	if space.Profile == nil {
+		return "default"
+	}
+	if space.Profile.Default != nil {
+		return "default"
+	}
+	if space.Profile.Custom != nil && space.Profile.Custom.Data != nil {
+		return space.Profile.Custom.Data.DirectoryBasename
+	}
+	return "default"
+}
+
+// ProfileInfo holds information about a unique profile
+type ProfileInfo struct {
+	Name        string // Profile directory name (e.g., "Profile 1")
+	DisplayName string // First space that uses this profile (for container name)
+	ContainerID int    // Zen container ID
+	Icon        string // Icon from first space
+	Color       string // Color from first space
+}
+
+// Firefox container colors
+var containerColors = []string{"blue", "turquoise", "green", "yellow", "orange", "red", "pink", "purple"}
+
+// collectUniqueProfiles finds all unique profiles and their first associated space
+func collectUniqueProfiles(spaces []*types.ArcSpace) map[string]*ProfileInfo {
+	profiles := make(map[string]*ProfileInfo)
+	colorIndex := 0
+	
+	for _, space := range spaces {
+		profileName := getProfileName(space)
+		
+		// Only record the first space that uses this profile
+		if _, exists := profiles[profileName]; !exists {
+			// Get icon
+			icon := ""
+			if space.CustomInfo != nil && space.CustomInfo.IconType != nil {
+				icon = space.CustomInfo.IconType.Icon
+			}
+			if icon == "" {
+				icon = space.Icon
+			}
+			
+			displayName := space.Title
+			if displayName == "" {
+				displayName = profileName
+			}
+			
+			// Arc doesn't have simple color names, so we rotate through colors
+			color := containerColors[colorIndex%len(containerColors)]
+			colorIndex++
+			
+			profiles[profileName] = &ProfileInfo{
+				Name:        profileName,
+				DisplayName: displayName,
+				Icon:        icon,
+				Color:       color,
+			}
+		}
+	}
+	
+	return profiles
 }
 
 // filterArcContainers filters out Arc internal containers
@@ -286,8 +360,8 @@ func (imp *Importer) insertItemWithChildren(
 	// Find container ID
 	containerID := 0
 	for _, container := range containersData.Identities {
-		if container.Name == spaceName {
-			containerID = container.UserContextID
+		if container.Name == spaceName && container.HasValidUserContextID() {
+			containerID = container.GetUserContextID()
 			break
 		}
 	}

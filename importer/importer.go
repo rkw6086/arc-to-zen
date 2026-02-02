@@ -256,6 +256,29 @@ func (imp *Importer) writeContainers(data *types.ContainersData) error {
 	containersPath := filepath.Join(imp.zenProfilePath, "containers.json")
 	imp.logger.Info("Writing containers.json...")
 
+	// Clean up invalid containers (those with null/missing userContextId)
+	// Keep: internal containers (public=false), containers with valid userContextId
+	var validIdentities []types.ContainerIdentity
+	invalidCount := 0
+	for _, container := range data.Identities {
+		// Keep internal containers (public=false) regardless of userContextId
+		if !container.Public {
+			validIdentities = append(validIdentities, container)
+			continue
+		}
+		// For public containers, require valid userContextId
+		if container.HasValidUserContextID() {
+			validIdentities = append(validIdentities, container)
+		} else {
+			invalidCount++
+			imp.logger.Info("  Removing invalid container: %q (null/missing userContextId)", container.Name)
+		}
+	}
+	if invalidCount > 0 {
+		imp.logger.Info("  Cleaned up %d invalid containers", invalidCount)
+	}
+	data.Identities = validIdentities
+
 	jsonData, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal containers: %w", err)
@@ -363,8 +386,52 @@ func (imp *Importer) doImport(
 	}
 	imp.logger.Info("Found %d Arc items", len(items))
 
+	// Collect unique profiles (Arc profiles map to Zen containers)
+	// Multiple Arc spaces can share the same profile/container
+	profiles := collectUniqueProfiles(spaces)
+	imp.logger.Info("Found %d unique profiles", len(profiles))
+
 	// Calculate next container ID
 	nextContainerID := calculateNextContainerID(containersData)
+
+	// Create containers for each unique profile
+	for profileName, profile := range profiles {
+		// Check if container already exists for this profile
+		existingContainer := findContainerByName(containersData.Identities, profile.DisplayName)
+		if existingContainer != nil {
+			profile.ContainerID = existingContainer.GetUserContextID()
+			if !imp.options.DryRun {
+				imp.logger.Info("Reusing existing container \"%s\" for profile \"%s\" (ID: %d)", 
+					profile.DisplayName, profileName, profile.ContainerID)
+			} else {
+				imp.logger.Info("[DRY-RUN] Would reuse container \"%s\" for profile \"%s\" (ID: %d)", 
+					profile.DisplayName, profileName, profile.ContainerID)
+			}
+		} else {
+			// Create new container for this profile
+			profile.ContainerID = nextContainerID
+			nextContainerID++
+
+			containersData.Identities = append(containersData.Identities, types.ContainerIdentity{
+				UserContextID: &profile.ContainerID,
+				Name:          profile.DisplayName,
+				Icon:          mappings.MapArcIconToContainerIcon(profile.Icon),
+				Color:         mappings.MapArcColorToZen(profile.Color),
+				Public:        true,
+			})
+
+			// Update lastUserContextId
+			containersData.LastUserContextID = &profile.ContainerID
+
+			if !imp.options.DryRun {
+				imp.logger.Info("Created container \"%s\" for profile \"%s\" (ID: %d)", 
+					profile.DisplayName, profileName, profile.ContainerID)
+			} else {
+				imp.logger.Info("[DRY-RUN] Would create container \"%s\" for profile \"%s\" (ID: %d)", 
+					profile.DisplayName, profileName, profile.ContainerID)
+			}
+		}
+	}
 
 	// Map space IDs to UUIDs
 	spaceUUIDMap := make(map[string]string)
@@ -396,72 +463,42 @@ func (imp *Importer) doImport(
 			arcIcon = space.Icon
 		}
 
+		// Get the container ID from the space's profile
+		profileName := getProfileName(space)
+		profile := profiles[profileName]
+		containerID := profile.ContainerID
+
 		// Check if space exists
 		var spaceUUID string
-		var containerID int
 		existingSpace := findSpaceByName(zenSession.Spaces, spaceName)
 
 		if existingSpace != nil {
 			// Merge into existing
 			spaceUUID = existingSpace.UUID
-			containerID = existingSpace.ContainerTabID
 
 			if !imp.options.DryRun {
-				imp.logger.Info("Merging into existing space \"%s\" (UUID: %s)", spaceName, spaceUUID)
+				imp.logger.Info("Merging into existing space \"%s\" (profile: %s, container: %d)", spaceName, profileName, containerID)
 			} else {
-				imp.logger.Info("[DRY-RUN] Would merge into existing space: \"%s\"", spaceName)
+				imp.logger.Info("[DRY-RUN] Would merge into existing space: \"%s\" (profile: %s)", spaceName, profileName)
 			}
 
 			// Delete old pins for this workspace
 			zenSession.Tabs = filterTabs(zenSession.Tabs, spaceUUID)
 			zenSession.Folders = filterFolders(zenSession.Folders, spaceUUID)
 
-			// Update space icon
+			// Update space icon and container
 			for i := range zenSession.Spaces {
 				if zenSession.Spaces[i].UUID == spaceUUID {
 					zenSession.Spaces[i].Icon = mappings.MapArcIconToSvg(arcIcon)
+					zenSession.Spaces[i].ContainerTabID = containerID
 					break
 				}
 			}
-
-			// Update container
-			updateContainer(containersData.Identities, containerID, spaceName, arcIcon, space.Color)
 		} else {
 			// Create new space
 			spaceUUID = fmt.Sprintf("{%s}", uuid.New().String())
 
-			// Check for existing container by name
-			existingContainer := findContainerByName(containersData.Identities, spaceName)
-			if existingContainer != nil {
-				containerID = existingContainer.UserContextID
-				if !imp.options.DryRun {
-					imp.logger.Info("Reusing existing container \"%s\" (ID: %d)", spaceName, containerID)
-				} else {
-					imp.logger.Info("[DRY-RUN] Would reuse container: \"%s\" (ID: %d)", spaceName, containerID)
-				}
-				updateContainer(containersData.Identities, containerID, spaceName, arcIcon, space.Color)
-			} else {
-				// Create new container
-				containerID = nextContainerID
-				nextContainerID++
-
-				containersData.Identities = append(containersData.Identities, types.ContainerIdentity{
-					UserContextID: containerID,
-					Name:          spaceName,
-					Icon:          mappings.MapArcIconToContainerIcon(arcIcon),
-					Color:         mappings.MapArcColorToZen(space.Color),
-					Public:        true,
-					L10nID:        fmt.Sprintf("userContext%d", containerID),
-				})
-
-				if !imp.options.DryRun {
-					imp.logger.Info("Created new container \"%s\" (ID: %d)", spaceName, containerID)
-				} else {
-					imp.logger.Info("[DRY-RUN] Would create container: \"%s\" (ID: %d)", spaceName, containerID)
-				}
-			}
-
-			// Add new space
+			// Add new space using the profile's container
 			zenSession.Spaces = append(zenSession.Spaces, types.ZenSpace{
 				UUID:           spaceUUID,
 				Name:           spaceName,
@@ -479,9 +516,9 @@ func (imp *Importer) doImport(
 			})
 
 			if !imp.options.DryRun {
-				imp.logger.Info("Created new space \"%s\" (UUID: %s)", spaceName, spaceUUID)
+				imp.logger.Info("Created space \"%s\" (profile: %s, container: %d)", spaceName, profileName, containerID)
 			} else {
-				imp.logger.Info("[DRY-RUN] Would create space: \"%s\"", spaceName)
+				imp.logger.Info("[DRY-RUN] Would create space: \"%s\" (profile: %s)", spaceName, profileName)
 			}
 			nextSpacePosition += 1000
 		}

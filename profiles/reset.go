@@ -14,6 +14,7 @@ func ResetProfile(profilePath string, dryRun bool) error {
 		"zen-sessions-backup",
 		"sessionstore.jsonlz4",
 		"sessionstore-backups",
+		"containers.json",
 	}
 
 	if dryRun {

@@ -18,12 +18,30 @@ type ArcContainer struct {
 
 // ArcSpace represents an Arc workspace/space
 type ArcSpace struct {
-	ID           string        `json:"id"`
-	Title        string        `json:"title"`
-	Icon         string        `json:"icon"`
-	Color        string        `json:"color"`
-	ContainerIDs []interface{} `json:"containerIDs"` // Can be strings or objects
+	ID           string         `json:"id"`
+	Title        string         `json:"title"`
+	Icon         string         `json:"icon"`
+	Color        string         `json:"color"`
+	ContainerIDs []interface{}  `json:"containerIDs"` // Can be strings or objects
 	CustomInfo   *ArcCustomInfo `json:"customInfo"`
+	Profile      *ArcProfile    `json:"profile"`
+}
+
+// ArcProfile represents an Arc browser profile
+type ArcProfile struct {
+	Default *struct{}       `json:"default,omitempty"`
+	Custom  *ArcCustomProfile `json:"custom,omitempty"`
+}
+
+// ArcCustomProfile represents a custom Arc profile
+type ArcCustomProfile struct {
+	Data *ArcProfileData `json:"_0"`
+}
+
+// ArcProfileData contains profile details
+type ArcProfileData struct {
+	MachineID         string `json:"machineID"`
+	DirectoryBasename string `json:"directoryBasename"`
 }
 
 // ArcCustomInfo contains custom space configuration

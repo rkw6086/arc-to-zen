@@ -92,16 +92,32 @@ type ZenGroup struct {
 
 // ContainersData represents the containers.json structure
 type ContainersData struct {
-	Version    int                 `json:"version"`
-	Identities []ContainerIdentity `json:"identities"`
+	Version           int                 `json:"version"`
+	LastUserContextID *int                `json:"lastUserContextId,omitempty"` // Tracks highest used ID
+	Identities        []ContainerIdentity `json:"identities"`
 }
 
 // ContainerIdentity represents a single container
+// Note: User-created containers have "name", built-in containers have "l10nId" for localization
 type ContainerIdentity struct {
-	UserContextID int    `json:"userContextId"`
-	Name          string `json:"name"`
+	UserContextID *int   `json:"userContextId,omitempty"` // Pointer to detect null vs 0
+	Name          string `json:"name,omitempty"`          // User-defined name (not for built-in containers)
 	Icon          string `json:"icon"`
 	Color         string `json:"color"`
 	Public        bool   `json:"public"`
-	L10nID        string `json:"l10nID"`
+	L10nID        string `json:"l10nId,omitempty"` // Localization ID for built-in containers (lowercase 'd'!)
+	AccessKey     string `json:"accessKey,omitempty"`
+}
+
+// GetUserContextID returns the userContextId or 0 if nil
+func (c *ContainerIdentity) GetUserContextID() int {
+	if c.UserContextID == nil {
+		return 0
+	}
+	return *c.UserContextID
+}
+
+// HasValidUserContextID returns true if the container has a valid (non-nil, non-zero) userContextId
+func (c *ContainerIdentity) HasValidUserContextID() bool {
+	return c.UserContextID != nil && *c.UserContextID > 0
 }

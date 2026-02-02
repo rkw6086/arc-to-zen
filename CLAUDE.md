@@ -106,6 +106,36 @@ This was a complex fix - Zen browser has specific requirements for nested folder
 - Nested folders appear flat → No tab with folder's `groupId` exists
 - Folder order reversed → Wrong processing order or sibling chaining
 
+## Profile-Based Container Mapping (CRITICAL)
+Arc profiles map to Zen containers. Multiple Arc spaces can share the same profile/container.
+
+**How it works:**
+1. `collectUniqueProfiles()` finds unique profiles from Arc spaces
+2. One container is created per unique profile (not per space)
+3. Container is named after the first space that uses that profile
+4. Colors rotate through: blue, turquoise, green, yellow, orange, red, pink, purple
+
+**Example:**
+- Personal → Profile 1 → Container "Personal"
+- Home Media → Profile 1 → Same container "Personal" (shared!)
+- Samsung → Profile 2 → Container "Samsung"
+
+## Container Format (IMPORTANT)
+User-created containers need only 5 fields:
+```json
+{"userContextId": 6, "public": true, "icon": "gift", "color": "red", "name": "Test"}
+```
+**DO NOT** set `l10nId` for user containers - only built-in containers use it.
+
+## Container Validation
+Firefox/Zen requires valid `userContextId` for all public containers.
+
+**How we handle this:**
+- `UserContextID` uses pointer type (`*int`) to detect `null` vs `0`
+- `HasValidUserContextID()` checks for non-nil, non-zero values
+- Invalid public containers are automatically removed during write
+- Default containers (with `l10nId`) are preserved unchanged
+
 ## Notes
 - macOS only (Arc browser requirement)
 - Always backs up session before writing

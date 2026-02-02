@@ -127,6 +127,17 @@ arc-to-zen "~/Library/Application Support/zen/Profiles/xxx.default"
   - Subsequent nested folders: chain to previous sibling folder for correct ordering
   - `emptyTabIds` tracks anchor tab UUIDs so Zen marks them as folder placeholders
   - **Collapsed by default:** All folders are imported in collapsed state for cleaner initial view
+- **Profile-based container mapping:** Arc profiles map to Zen containers (not 1:1 with spaces)
+  - Multiple Arc spaces can share the same profile/container
+  - Containers are named after the first space that uses each profile
+  - Colors are rotated through Firefox's container colors: blue, turquoise, green, yellow, orange, red, pink, purple
+  - Default Zen containers (Personal, Work, Banking, Shopping with `l10nId`) are preserved unchanged
+  - User containers only need 5 fields: `userContextId`, `public`, `icon`, `color`, `name` (no `l10nId`)
+- **Container validation:** Firefox/Zen requires valid `userContextId` for all public containers
+  - Invalid containers (with `null` or missing `userContextId`) cause Zen to throw errors in preferences
+  - The importer uses a pointer type (`*int`) for `UserContextID` to properly detect `null` vs `0`
+  - Invalid public containers are automatically cleaned up during import
+  - Internal containers (`public: false`) are preserved regardless of userContextId
 - **Icon mapping:** Two separate mapping systems in `mappings/mappings.go`:
   - **Workspace icons:** `MapArcIconToSvg()` maps Arc icons to Zen's selectable SVG icons (chrome://browser/skin/zen-icons/selectable/*.svg)
     - `star` → `star-1.svg` (classic 5-pointed star, not the asterisk/sparkle shape in `star.svg`)
