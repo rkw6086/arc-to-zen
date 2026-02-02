@@ -23,7 +23,7 @@ A Go implementation of the Arc browser data import tool for Zen browser. This to
 
 ```bash
 # Add the tap
-brew tap rkw6086/arc-to-zen https://github.com/rkw6086/arc-to-zen.git
+brew tap rkw6086/arc-to-zen
 
 # Install
 brew install arc-to-zen
