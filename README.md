@@ -4,6 +4,8 @@ A Go implementation of the Arc browser data import tool for Zen browser. This to
 
 ## Features
 
+- ✅ **Full macOS support**
+- 🚧 **Windows support** (in progress)
 - ✅ **Auto-discovery** of Zen profiles (no manual path needed)
 - ✅ Import Arc spaces as Zen workspaces
 - ✅ Import Arc folders and nested folder hierarchies
