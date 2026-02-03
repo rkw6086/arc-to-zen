@@ -28,9 +28,10 @@ make test           # Run tests
 2. **Arc Data Source:** `~/Library/Application Support/Arc/StorableSidebar.json`
 3. **Zen Session File:** `{profile}/zen-sessions.jsonlz4` (compressed)
 4. **Main Container:** Arc spaces/items are in `sidebar.containers[1]` (index 1, not 0)
-5. **Item Ordering:** Children processed in forward order with folder-based sibling chaining
-6. **Parallel Favicon Pre-caching:** Uses 10 concurrent workers to fetch favicons before import
-7. **Fresh Session Support:** Can create new session from scratch if no existing session file exists
+5. **Default Space Handling:** If Arc has no explicit spaces (only default profile), a synthetic "Default" workspace is created containing all root-level items
+6. **Item Ordering:** Children processed in forward order with folder-based sibling chaining
+7. **Parallel Favicon Pre-caching:** Uses 10 concurrent workers to fetch favicons before import
+8. **Fresh Session Support:** Can create new session from scratch if no existing session file exists
 
 ## CLI Flags
 - `-dry-run` - Preview changes without writing

@@ -377,7 +377,6 @@ func (imp *Importer) doImport(
 	if err != nil {
 		return nil, err
 	}
-	imp.logger.Info("Found %d Arc spaces", len(spaces))
 
 	// Parse items
 	items, err := parseArcItems(mainContainer.Items)
@@ -385,6 +384,13 @@ func (imp *Importer) doImport(
 		return nil, err
 	}
 	imp.logger.Info("Found %d Arc items", len(items))
+
+	// If no spaces found, create a synthetic default space with all root items
+	if len(spaces) == 0 {
+		imp.logger.Info("No Arc spaces found - creating default workspace")
+		spaces = []*types.ArcSpace{createDefaultSpace(items)}
+	}
+	imp.logger.Info("Found %d Arc spaces", len(spaces))
 
 	// Collect unique profiles (Arc profiles map to Zen containers)
 	// Multiple Arc spaces can share the same profile/container

@@ -255,6 +255,35 @@ func collectUniqueProfiles(spaces []*types.ArcSpace) map[string]*ProfileInfo {
 	return profiles
 }
 
+// createDefaultSpace creates a synthetic default space containing all root-level items
+// This is used when Arc has no explicit spaces (user only uses default profile)
+func createDefaultSpace(items []*types.ArcItem) *types.ArcSpace {
+	// Collect root-level item IDs (items without a parent, excluding Arc containers)
+	var containerIDs []interface{}
+	for _, item := range items {
+		// Skip items with a parent (they're children of other items)
+		if item.ParentID != "" {
+			continue
+		}
+		// Skip Arc internal containers
+		if item.Data != nil && item.Data.ItemContainer != nil && item.Data.ItemContainer.ContainerType != nil {
+			// But still add their children as root items
+			for _, childID := range item.ChildrenIds {
+				containerIDs = append(containerIDs, childID)
+			}
+			continue
+		}
+		containerIDs = append(containerIDs, item.ID)
+	}
+
+	return &types.ArcSpace{
+		ID:           "default-space",
+		Title:        "Default",
+		ContainerIDs: containerIDs,
+		Profile:      &types.ArcProfile{Default: &struct{}{}},
+	}
+}
+
 // filterArcContainers filters out Arc internal containers
 func filterArcContainers(items []*types.ArcItem) []*types.ArcItem {
 	var filtered []*types.ArcItem

@@ -101,6 +101,7 @@ arc-to-zen "~/Library/Application Support/zen/Profiles/xxx.default"
 ## Important Implementation Details
 - **Mozilla LZ4 format:** 8-byte header (`mozLz40\0`) + 4-byte size (LE) + LZ4 block data
 - **Arc containers at index 1:** Main container with spaces/items is at `sidebar.containers[1]`
+- **Default space handling:** If Arc has no explicit spaces (only default profile), a synthetic "Default" workspace is created containing all root-level items
 - **Folder children forward:** Children processed in forward order with folder-based sibling chaining
 - **Merge mode:** Existing spaces matched by name are updated, not duplicated
 - **Fresh session support:** Can create new session from scratch if no existing session file exists
